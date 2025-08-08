@@ -3,6 +3,8 @@ name: Auto-Assign via Issue Body
 on:
   issues:
     types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
 
 jobs:
   auto-assign:
