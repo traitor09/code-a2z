@@ -29,12 +29,6 @@ jobs:
                 issue_number: context.issue.number,
                 assignees: [context.payload.issue.user.login]
               });
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: `<!-- assigned-timestamp -->\n[Assigned on] ${new Date().toISOString().split("T")[0]}`
-              });
             }
 
       - name: Check for "/assign" comment
@@ -51,10 +45,4 @@ jobs:
                 issue_number: context.issue.number,
                 assignees: [context.payload.comment.user.login]
               });
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: `<!-- assigned-timestamp -->\n[Assigned on] ${new Date().toISOString().split("T")[0]}`
-              });
-            }
+              }
