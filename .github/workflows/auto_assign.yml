@@ -1,3 +1,4 @@
+name: Auto-Assign Based on Dropdown
 
 on:
   issues:
@@ -17,8 +18,8 @@ jobs:
             const body = context.payload.issue.body || "";
             const user = context.payload.issue.user.login;
 
-            // Match the dropdown question and extract the next line
-            const match = body.match(/Would you like to work on this issue\?.*?\r?\n- (.*)/);
+            // Match the question + answer block
+            const match = body.match(/### Would you like to work on this issue\?\s*\n\s*(.*)/i);
             const answer = match ? match[1].trim().toLowerCase() : "";
 
             console.log("Parsed dropdown answer:", answer);
@@ -30,7 +31,7 @@ jobs:
                 issue_number: context.issue.number,
                 assignees: [user],
               });
-              console.log(`Assigned @${user} to issue #${context.issue.number}`);
+              console.log(`✅ Assigned @${user}`);
             } else {
-              console.log("User answered 'No' or invalid format — not assigning.");
+              console.log("❌ Not assigning — answer was:", answer);
             }
