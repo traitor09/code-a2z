@@ -2,39 +2,39 @@ on:
   issues:
     types: [assigned]
 uses: actions/github-script@v7
-  with:
-    script: |
-    const assignee = context.payload.comment?.user?.login || context.payload.issue?.user?.login;
-    const issueNumber = context.issue.number;
-    const owner = context.repo.owner;
-    const repo = context.repo.repo;
-    const marker = `<!-- assigned-timestamp:${assignee} -->`;
-    const dateStr = new Date().toISOString().split("T")[0];
-    const body = `${marker}\n[Assigned on] ${dateStr} by @${assignee}`;
+with:
+  script: |
+  const assignee = context.payload.comment?.user?.login || context.payload.issue?.user?.login;
+  const issueNumber = context.issue.number;
+  const owner = context.repo.owner;
+  const repo = context.repo.repo;    
+  const marker = `<!-- assigned-timestamp:${assignee} -->`;
+  const dateStr = new Date().toISOString().split("T")[0];
+  const body = `${marker}\n[Assigned on] ${dateStr} by @${assignee}`;
 
 // Get existing comments on the issue
-    const { data: comments } = await github.rest.issues.listComments({
+  const { data: comments } = await github.rest.issues.listComments({
     owner,
     repo,
     issue_number: issueNumber,
-    });
+  });
 
-    const existing = comments.find(comment => comment.body.startsWith(marker));
+  const existing = comments.find(comment => comment.body.startsWith(marker));
 
 // If a previous comment exists, update it
-    if (existing) {
+  if (existing) {
     await github.rest.issues.updateComment({
-    owner,
-    repo,
-    comment_id: existing.id,
-    body: body
+      owner,
+      repo,
+      comment_id: existing.id,
+      body: body
     });
-   } else {
+  } else {
   // Else, create a new one
-  await github.rest.issues.createComment({
-    owner,
-    repo,
-    issue_number: issueNumber,
-    body: body
+    await github.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: issueNumber,
+      body: body
   });
 }
