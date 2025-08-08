@@ -1,0 +1,145 @@
+
+name: Assign via Template or Command
+
+on:
+  issues:
+    types: [opened, edited, reopened, labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  auto-assign:
+    if: github.event.issue.pull_request == null
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto assign from template or command
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const commenter = context.payload.comment?.user?.login;
+            const issueUser = issue.user.login;
+            const body = issue.body || "";
+            const commentBody = context.payload.comment?.body || "";
+            const username = commenter || issueUser;
+
+            // Check number of issues already assigned to this user
+            const assignedIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              assignee: username
+            });
+            const alreadyHasTwo = assignedIssues.length = 2;
+
+            // Check if user was unassigned before from this issue
+            const events = await github.rest.issues.listEvents({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number
+            });
+            const previouslyUnassigned = events.data.some(event => event.event === 'unassigned' && event.assignee?.login === username);
+
+            const shouldAssign = !alreadyHasTwo && !previouslyUnassigned;
+
+            // 1. Assign if user selected "Yes" in issue template
+            
+            const templateMatch = body.match(/### Would you like to work on this issue\?\s*\n(Yes|No)/i);
+            if (templateMatch && templateMatch[1].toLowerCase() === "yes" && issueUser === username && shouldAssign) {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                assignees: [username]
+              });
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                name: 'up-for-grabs'
+              }).catch(() => {});
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['Status: Assigned']
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `<!-- assigned: ${new Date().toISOString()} -->`
+              });
+            }
+
+            // 2. Assign if user comments "/assign"
+            
+            if (commentBody.trim() === "/assign" && shouldAssign) {
+              const assignees = issue.assignees.map(a => a.login);
+              if (!assignees.includes(username)) {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: [username]
+                });
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: 'up-for-grabs'
+                }).catch(() => {});
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: ['Status: Assigned']
+                });
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `<!-- assigned: ${new Date().toISOString()} -->`
+                });
+              }
+            }
+
+            // 3. Manually assigned
+            
+            if (context.payload.action === 'assigned') {
+              const assignee = context.payload.assignee?.login;
+              if (assignee) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: 'up-for-grabs'
+                }).catch(() => {});
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: ['Status: Assigned']
+                });
+
+                // Add timestamp if not already
+                const comments = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number
+                });
+                const hasTimestamp = comments.data.some(c => c.body?.includes('<!-- assigned:'));
+                if (!hasTimestamp) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `<!-- assigned: ${new Date().toISOString()} -->`
+                  });
+                }
+              }
+            }
+
