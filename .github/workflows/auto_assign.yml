@@ -46,7 +46,23 @@ jobs:
                 body: `<!-- assigned-timestamp -->\n[Assigned on] ${new Date().toISOString().split("T")[0]}`
               });
             }
+      
+      - name: Label "up-for-grabs" if user chose "No"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+            if (body.includes("### Would you like to work on this issue?") && body.includes("No")) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['up-for-grabs']
+              });
+            }
 
+
+      
       - name: Assign if /assign is used
         if: github.event_name == 'issue_comment'
         uses: actions/github-script@v7
