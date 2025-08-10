@@ -20,6 +20,13 @@ jobs:
             const body = issue.body || "";
             const user = issue.user.login;
             const userId = issue.user.id;
+            
+            const wasYesBefore = context.payload.changes?.body?.from?.includes("### Would you like to work on this issue?\n\nYes") || false;
+            const isYesNow = body.includes("### Would you like to work on this issue?\n\nYes");
+
+            if (!isYesNow || wasYesBefore) {
+             return;
+             }
 
             const exactYesMatch = body.includes("### Would you like to work on this issue?\n\nYes");
             const alreadyAssigned = issue.assignees.some(a => a.login === user);
